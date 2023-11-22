@@ -40,7 +40,7 @@ def prepare_data(fname, list_target_cols):
     return x_train_tensor, y_train_tensor, x_test_tensor, y_test_tensor, scaler_input, scaler_output
 
 
-def create_model(input_dim, output_dim):
+def create_model(input_dim, output_dim, dropout):
     print("creating model ...")
     
     class MLP(nn.Module):
@@ -48,15 +48,33 @@ def create_model(input_dim, output_dim):
         def __init__(self, input_dim, output_dim):
             super(MLP, self).__init__()
     
-            self.layers = nn.Sequential(
+            layers = [
                 nn.Linear(input_dim, 64),
-                nn.ReLU(),
+                nn.ReLU()
+            ]
+
+            if dropout:
+                layers.append(nn.Dropout(0.5))
+
+            layers.extend([
                 nn.Linear(64, 128),
-                nn.ReLU(),
+                nn.ReLU()
+            ])
+
+            if dropout:
+                layers.append(nn.Dropout(0.5))
+
+            layers.extend([
                 nn.Linear(128, 64),
-                nn.ReLU(),
-                nn.Linear(64, output_dim)
-            )
+                nn.ReLU()
+            ])
+
+            if dropout:
+                layers.append(nn.Dropout(0.5))
+
+            layers.append(nn.Linear(64, output_dim))
+
+            self.layers = nn.Sequential(*layers)
     
         def forward(self, x):
             return self.layers(x)
@@ -66,7 +84,7 @@ def create_model(input_dim, output_dim):
 
 
 def train_and_test_MLP(epochs, model, x_train_tensor, y_train_tensor, x_test_tensor, y_test_tensor, scaler_output):    
-    print("training model ...")
+    #print("training model ...")
         
     learning_rate = 0.001
     loss = nn.MSELoss()
@@ -86,23 +104,26 @@ def train_and_test_MLP(epochs, model, x_train_tensor, y_train_tensor, x_test_ten
         if epoch % 5 == 0:
             MAPE_train = test_MLP("train data", model, x_train_tensor, y_train_tensor, scaler_output)
             MAPE_test  = test_MLP("test data", model, x_test_tensor,  y_test_tensor,  scaler_output)
-            print(f"Epoch {epoch}: train MAPE={MAPE_train:.2f}, test MAPE = {MAPE_test:.2f}")
+            #print(f"Epoch {epoch}: train MAPE={MAPE_train:.2f}, test MAPE = {MAPE_test:.2f}")
             MAPEs_train.append( MAPE_train )
             MAPEs_test.append( MAPE_test )     
             epoch_nr.append( epoch )
-    
-    import matplotlib.pyplot as plt
-    plt.plot( epoch_nr, MAPEs_train, color="blue", label="MAPE on train data" )
-    plt.plot( epoch_nr, MAPEs_test,  color="red", label="MAPE on test data" )
-    plt.xlabel("Epoche")
-    plt.ylabel("MAPE [%]")
-    plt.title("Fehlerkurve / Trainingskurve")
-    plt.legend()
-    plt.show()
+
+    if True:
+        import matplotlib.pyplot as plt
+        plt.plot( epoch_nr, MAPEs_train, color="blue", label="MAPE on train data" )
+        plt.plot( epoch_nr, MAPEs_test,  color="red", label="MAPE on test data" )
+        plt.xlabel("Epoche")
+        plt.ylabel("MAPE [%]")
+        plt.title("Fehlerkurve / Trainingskurve")
+        plt.legend()
+        plt.show()
+
+    return MAPEs_test[-1]
 
 
 def test_MLP(datatype, model, x_test_tensor, y_test_tensor, scaler_output):
-    print(f"\ttesting model on {datatype} ...")
+    #print(f"\ttesting model on {datatype} ...")
     
     model.eval()
     with torch.no_grad():
